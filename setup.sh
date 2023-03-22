@@ -44,7 +44,7 @@ current_dir="$(
 mode="testing"
 hostname="localhost"
 local_http_port="80"
-lasius_version="1.0.0-beta1"
+lasius_version="1.0.0-beta2"
 
 echo ""
 echo "Welcome to the Lasius setup script."
@@ -142,6 +142,17 @@ env_file=./$mode/.env
 
 echo "LASIUS_HOSTNAME=$hostname" >$env_file
 echo "LASIUS_INSTANCE=lasius-$mode" >>$env_file
+
+if [ "$mode" == "testing" ]; then
+  echo "LASIUS_DEMO_MODE=true" >>$env_file
+fi
+
+if [ "$mode" == "production" ]; then
+  echo "LASIUS_DEMO_MODE=false" >>$env_file
+fi
+
+echo "LASIUS_TELEMETRY_MATOMO_HOST=" >>$env_file
+echo "LASIUS_TELEMETRY_MATOMO_ID=" >>$env_file
 echo "LASIUS_VERSION=$lasius_version" >>$env_file
 echo "LASIUS_PORT_HTTPS=443" >>$env_file
 echo "LASIUS_PORT_HTTP=$local_http_port" >>$env_file
