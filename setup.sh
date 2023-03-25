@@ -44,7 +44,6 @@ current_dir="$(
 mode="testing"
 hostname="localhost"
 local_http_port="80"
-lasius_version="1.0.0-beta2"
 
 echo ""
 echo "Welcome to the Lasius setup script."
@@ -153,7 +152,7 @@ fi
 
 echo "LASIUS_TELEMETRY_MATOMO_HOST=" >>$env_file
 echo "LASIUS_TELEMETRY_MATOMO_ID=" >>$env_file
-echo "LASIUS_VERSION=$lasius_version" >>$env_file
+echo "LASIUS_VERSION=" >>$env_file
 echo "LASIUS_PORT_HTTPS=443" >>$env_file
 echo "LASIUS_PORT_HTTP=$local_http_port" >>$env_file
 echo "MONGO_HOST=mongodb:27017" >>$env_file

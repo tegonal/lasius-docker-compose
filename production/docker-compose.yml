@@ -117,8 +117,8 @@ services:
     restart: always
     healthcheck:
       test: |
-        mongosh -u "$$MONGO_INITDB_ROOT_USERNAME" -p "$$MONGO_INITDB_ROOT_PASSWORD" --port 27017 --quiet --eval "rs.status().ok" ||
-         mongosh -u "$$MONGO_INITDB_ROOT_USERNAME" -p "$$MONGO_INITDB_ROOT_PASSWORD" --port 27017 --quiet --eval "rs.initiate({_id: \"lasius\",members: [{ _id : 0, host : \"mongodb:27017\" }]}).ok"
+        mongosh -u "$${MONGO_INITDB_ROOT_USERNAME:-admin}" -p "$${MONGO_INITDB_ROOT_PASSWORD:-admin}" --port 27017 --quiet --eval "rs.status().ok" ||
+         mongosh -u "$${MONGO_INITDB_ROOT_USERNAME:-admin}" -p "$${MONGO_INITDB_ROOT_PASSWORD:-admin}" --port 27017 --quiet --eval "rs.initiate({_id: \"lasius\",members: [{ _id : 0, host : \"mongodb:27017\" }]}).ok"
       interval: 10s
       retries: 5
       start_period: 15s
