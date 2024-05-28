@@ -160,7 +160,7 @@ echo "MONGO_INITDB_PASSWORD=$mongo_db_pw" >>$env_file
 echo "MONGO_INITDB_USERNAME=lasius" >>$env_file
 echo "NEXTAUTH_SECRET=$next_auth_key" >>$env_file
 echo "LASIUS_INITIAL_USER_EMAIL=$admin_user" >>$env_file
-echo "LASIUS_INITIAL_USER_PW=$admin_pw" >>$env_file
+echo "LASIUS_INITIAL_USER_PASSWORD=$admin_pw" >>$env_file
 echo "LASIUS_INITIAL_USER_KEY=admin" >>$env_file
 
 echo "Done. You can now start Lasius with the start.sh script."
