@@ -110,6 +110,21 @@ if [ "$mode" == "production" ]; then
       break
     fi
   done
+
+  while true; do
+  read -rp "Start lasius in https mode (with self-signed certificate)? (y/n) " yn
+  case $yn in
+  [Yy]*)
+    dockerfile="docker-compose.yml"
+    break
+    ;;
+  [Nn]*)
+    dockerfile="docker-compose-no-https.yml"
+    break
+    ;;
+  *) echo "Please answer with (y)es or (n)o" ;;
+  esac
+done
 fi
 echo ""
 
@@ -123,6 +138,8 @@ if [ "$mode" == "testing" ]; then
       break
     fi
   done
+
+  dockerfile="docker-compose.yml"
 fi
 echo ""
 
@@ -130,8 +147,11 @@ mongo_db_key=$(openssl rand -base64 741)
 mongo_db_pw=$(openssl rand -base64 32 | tr -d '\n')
 next_auth_key=$(openssl rand -base64 96 | tr -d '\n')
 
+mongo_admin_db_pw=$(openssl rand -base64 32 | tr -d '\n')
+
 echo "Saving configuration to lasius.conf ..."
 echo "mode=$mode" >lasius.conf
+echo "dockerfile=$dockerfile" >>lasius.conf
 echo ""
 
 mongo_db_key_file=./$mode/mongodb/key/mongodb.key
@@ -157,6 +177,8 @@ echo "LASIUS_PORT_HTTPS=443" >>$env_file
 echo "LASIUS_PORT_HTTP=$local_http_port" >>$env_file
 echo "MONGO_HOST=mongodb:27017" >>$env_file
 echo "MONGO_INITDB_PASSWORD=$mongo_db_pw" >>$env_file
+echo "MONGO_INITDB_ROOT_USERNAME=admin" >>$env_file
+echo "MONGO_INITDB_ROOT_PASSWORD=$mongo_admin_db_pw" >>$env_file
 echo "MONGO_INITDB_USERNAME=lasius" >>$env_file
 echo "NEXTAUTH_SECRET=$next_auth_key" >>$env_file
 echo "LASIUS_INITIAL_USER_EMAIL=$admin_user" >>$env_file
