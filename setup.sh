@@ -112,7 +112,7 @@ if [ "$mode" == "production" ]; then
   done
 
   while true; do
-  read -rp "Start lasius in https mode (with self-signed certificate)? (y/n) " yn
+  read -rp "Start lasius in https mode (with lets-encrypt certificate)? (y/n) " yn
   case $yn in
   [Yy]*)
     dockerfile="docker-compose.yml"
