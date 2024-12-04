@@ -12,7 +12,7 @@ else
     exit 1
 fi
 
-if [ -z "$dockerfile"]; then
+if [ -z "$dockerfile" ]; then
     dockerfile="docker-compose.yml"
 fi
 
