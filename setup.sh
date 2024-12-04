@@ -24,7 +24,7 @@ fi
 SERVER_VERSION=$(docker version -f "{{.Server.Version}}")
 SERVER_VERSION_MAJOR=$(echo "$SERVER_VERSION" | cut -d'.' -f 1)
 SERVER_VERSION_MINOR=$(echo "$SERVER_VERSION" | cut -d'.' -f 2)
-SERVER_VERSION_BUILD=$(echo "$SERVER_VERSION" | cut -d'.' -f 3)
+SERVER_VERSION_BUILD=$(echo "$SERVER_VERSION" | cut -d'.' -f 3 | cut -d'+' -f 1 | cut -d'~' -f 1 | cut -d'-' -f 1)
 
 if [ "${SERVER_VERSION_MAJOR}" -ge 20 ] &&
   [ "${SERVER_VERSION_MINOR}" -ge 0 ] &&
@@ -118,6 +118,7 @@ if [ "$mode" == "testing" ]; then
     read -rp "Please enter a port: (press enter to use 8080) " input
     if [ -z "$input" ]; then
       local_http_port="8080"
+      break
     else
       local_http_port=$input
       break
