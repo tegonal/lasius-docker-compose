@@ -1,0 +1,118 @@
+## The following config file is intended for a test environment.
+## To use Lasius productively, mongo db should be used in a replicaset with transactions.
+## Following docker-compose setup comes with single mongo instance and therefore without support of transactions.
+
+version: "3.9"
+
+services:
+  traefik:
+    image: traefik:2.9
+    container_name: traefik
+    command:
+      - --log.level=DEBUG
+      - --entrypoints.http.address=:80
+      - --providers.docker=true
+      #- --api=true
+      #- --api.dashboard=false
+      - --providers.docker.exposedByDefault=false
+    restart: always
+    ports:
+      - "${LASIUS_PORT_HTTP:-80}:80"
+      - "${LASIUS_PORT_TRAEFIK_DASHBOARD:-8234}:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
+  frontend:
+    image: tegonal/lasius-frontend:${LASIUS_VERSION:-latest}
+    container_name: frontend
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.frontend.rule=Host(`${LASIUS_HOSTNAME:-localhost}`) && !PathPrefix(`/backend`)
+      - traefik.http.routers.frontend.entrypoints=http
+      - traefik.http.services.frontend.loadbalancer.server.port=3000
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- 'http://frontend:3000/api/health' || exit 1"]
+      interval: 10s
+      retries: 5
+      start_period: 5s
+      timeout: 10s
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      ENVIRONMENT: production
+      LASIUS_API_URL: http://${LASIUS_HOSTNAME:-localhost}:${LASIUS_PORT_HTTP:-80}/backend
+      LASIUS_API_URL_INTERNAL: http://backend:9000/backend
+      LASIUS_API_WEBSOCKET_URL: ws://${LASIUS_HOSTNAME:-localhost}:${LASIUS_PORT_HTTP:-80}/backend
+      LASIUS_DEMO_MODE: ${LASIUS_DEMO_MODE:-false}
+      LASIUS_TELEMETRY_MATOMO_HOST: ${LASIUS_TELEMETRY_MATOMO_HOST}
+      LASIUS_TELEMETRY_MATOMO_ID: ${LASIUS_TELEMETRY_MATOMO_ID}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-zSaXWo4L7rS9uWETmvT6oL/0tE6X4Lt7ZCJRkNBUMnQ=}
+      NEXTAUTH_URL: http://${LASIUS_HOSTNAME:-localhost}:${LASIUS_PORT_HTTP:-80}/api/auth
+      NEXTAUTH_URL_INTERNAL: http://frontend:3000
+      TZ: ${TZ:-CET}
+
+  backend:
+    image: tegonal/lasius-backend:${LASIUS_VERSION:-latest}
+    container_name: backend
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.backend.rule=Host(`${LASIUS_HOSTNAME:-localhost}`) && PathPrefix(`/backend`) && !PathPrefix(`/backend/docs`)
+      - traefik.http.routers.backend.entrypoints=http
+      - traefik.http.services.backend.loadbalancer.server.port=9000
+    restart: always
+    healthcheck:
+      test: curl --fail http://backend:9000/backend/config || exit 1
+      interval: 10s
+      retries: 5
+      start_period: 15s
+      timeout: 10s
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    environment:
+      ARTIFACT_PATH: artifact.zip
+      LASIUS_CLEAN_DATABASE_ON_STARTUP: 'false'
+      LASIUS_INITIALIZE_DATA: 'true' # <== Set to false after first start
+      LASIUS_INSTANCE: ${LASIUS_INSTANCE:-Dev}
+      LASIUS_INITIAL_USER_EMAIL: ${LASIUS_INITIAL_USER_EMAIL}
+      LASIUS_INITIAL_USER_KEY: ${LASIUS_INITIAL_USER_KEY}
+      LASIUS_INITIAL_USER_PASSWORD: ${LASIUS_INITIAL_USER_PASSWORD}
+      LASIUS_SUPPORTS_TRANSACTIONS: 'false' # <== Enable transactions only if you connect to a mongodb replicaset
+      LASIUS_TITLE: ${LASIUS_HOSTNAME:-lasius}
+      MONGODB_URI: mongodb://${MONGO_INITDB_USERNAME:-lasius}:${MONGO_INITDB_PASSWORD:-lasius}@${MONGO_HOST:-mongodb:27017}/lasius
+      START_PARAMS: -Dlogger.resource=logback-prod.xml -Dpidfile.path=/var/run/lasius.pid -DALLOWED_HOSTS.0=${LASIUS_HOSTNAME:-localhost} -DALLOWED_HOSTS.2=backend:9000
+      TZ: ${TZ:-CET}
+
+  mongodb:
+    build:
+      context: mongodb
+      dockerfile: Dockerfile
+    container_name: mongodb
+    labels:
+      - traefik.enable=false
+    restart: always
+    healthcheck:
+      test: |
+        mongosh -u "$${MONGO_INITDB_ROOT_USERNAME:-admin}" -p "$${MONGO_INITDB_ROOT_PASSWORD:-admin}" --port 27017 --quiet --eval "rs.status().ok" ||
+         mongosh -u "$${MONGO_INITDB_ROOT_USERNAME:-admin}" -p "$${MONGO_INITDB_ROOT_PASSWORD:-admin}" --port 27017 --quiet --eval "rs.initiate({_id: \"lasius\",members: [{ _id : 0, host : \"mongodb:27017\" }]}).ok"
+      interval: 10s
+      retries: 5
+      start_period: 15s
+      timeout: 10s
+    environment:
+      MONGO_INITDB_DATABASE: lasius
+      MONGO_INITDB_PASSWORD: ${MONGO_INITDB_PASSWORD:-lasius}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:-admin}
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME:-admin}
+      MONGO_INITDB_USERNAME: ${MONGO_INITDB_USERNAME:-lasius}
+      TZ: ${TZ:-CET}
+    volumes:
+      - db:/data/db
+      - ./mongodb/init/mongodb-init.sh:/docker-entrypoint-initdb.d/mongodb-init.sh:ro
+    command: --replSet lasius --bind_ip_all --keyFile /secrets/mongodb.key --auth  --port 27017
+
+volumes:
+  db:
+    driver: local
