@@ -1,10 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-if [ "$(uname -m)" != "x86_64" ]; then
-    echo "Sorry, Lasius currently only supports x86_64 (amd64) architectures."
-    exit 1
-fi
+current_dir="$( cd "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
 
 if [ -f "lasius.conf" ]; then
     echo "Reading lasius.conf..."
@@ -14,7 +11,9 @@ else
     exit 1
 fi
 
+cd "$mode"
 docker compose --project-name lasius-"$mode" down
+cd "$current_dir"
 
 if [ "$mode" = "testing" ]; then
     echo "Removing docker volumes in testing mode ..."
