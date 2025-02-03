@@ -145,10 +145,10 @@ fi
 echo ""
 
 mongo_db_key=$(openssl rand -base64 741)
-mongo_db_pw=$(openssl rand -base64 32 | tr -d '\n')
+mongo_db_pw=$(openssl rand -hex 16 | tr -d '\n')
 next_auth_key=$(openssl rand -base64 96 | tr -d '\n')
 
-mongo_admin_db_pw=$(openssl rand -base64 32 | tr -d '\n')
+mongo_admin_db_pw=$(openssl rand -hex 32 | tr -d '\n')
 
 echo "Saving configuration to lasius.conf ..."
 echo "mode=$mode" >lasius.conf
