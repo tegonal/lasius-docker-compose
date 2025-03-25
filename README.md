@@ -3,8 +3,9 @@
 This is a companion repo for Lasius, the open source time tracking solution for teams. This repo will allow you to spin
 up a demo instance of Lasius in a few minutes on your local machine or on a server.
 
-This setup is currently populating the database with demo data. We will add an option to run a vanilla instance in
-the future.
+This setup currently provides two different configurations:
+1) testing: Local instance based on demo instance populated with demo data and started with the local oauth provider
+2) production: Local instance with an empty database attached to a local keycloak provider. Customize the setup to your needs or hook in other oauth providers
 
 If you are looking for the source-code visit the [main repo](https://github.com/tegonal/lasius).
 
@@ -17,7 +18,7 @@ User: demo1@lasius.ch, Password: demo
 
 ## The obligatory public beta disclaimer
 
-1) Lasius is in use in production at [Tegonal](https://tegonal.com). We are using it to track our own time, but we
+1) Lasius is in used in production at [Tegonal](https://tegonal.com). We are using it to track our own time, but we
    cannot guarantee that it will work for you.
 2) We plan to continuously improve Lasius to fit our needs and add new features that a broad audience might find useful.
    If you have any feedback, please let us know.
