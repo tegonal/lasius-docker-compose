@@ -64,13 +64,29 @@ cd lasius-docker-compose
 
 ### Production
 1) Enter the hostname you defined during setup in your browser.
-2) Login using the credentials you entered during setup.
+2) Register a new user with the local Keycloak provider, or log in with one of the configured external oauth providers.
 3) Create organisations, projects, invite users and start tracking time.
 
 ### If you like Lasius, we can help you with deployment and maintenance
 
 If you would like to use Lasius in a commercial setting, please contact us
 at [info@tegonal.com](mailto:info@tegonal.com). We can manage your deployment and provide support for your team.
+
+## Customization
+
+### Terms of Service
+You can require users to accept your Terms of Service before they are able to use Lasius. To enable this feature,
+answer 'yes' to the corresponding question during setup in production mode. Then, edit the template files in
+`production/termsofservice/` to reflect your Terms of Service. There is one HTML file per supported language
+(e.g. `en.html` for English).
+
+Please note that if you update those files later, you also have to change `LASIUS_TERMSOFSERVICE_VERSION` in
+`production/.env` and restart the service in order to force users to accept the updated version of the terms.
+
+### Local Keycloak oauth provider
+In production mode, the local oauth provider can be managed at `https://{hostname}/keycloak/`. The login
+credentials are `admin` and an automatically generated password `KEYCLOAK_ADMIN_PWD`, which can be found in
+`production/.env`.
 
 ## Terms of use
 
