@@ -60,8 +60,8 @@ echo "If you choose production mode, you will be asked to enter a hostname. This
 echo "will be used to generate a certificate for your server. If you choose testing"
 echo "mode, you will be asked to enter a HTTP port."
 echo ""
-echo "Additionally, if you choose production mode, you will be asked to enter an e-mail"
-echo "and password. This will be your initial \"root\" user."
+echo "Additionally, if you choose production mode, you will be asked if you want "
+echo "to require users to accept your Terms of Service before using Lasius."
 echo ""
 while true; do
   read -rp "Start lasius in production mode? (y/n) " yn
@@ -91,21 +91,47 @@ if [ "$mode" == "production" ]; then
   echo ""
 
   while true; do
-  read -rp "Start lasius in https mode (with lets-encrypt certificate)? (y/n) " yn
-  case $yn in
-  [Yy]*)
-    dockerfile="docker-compose.yml"
-    baseurl="https://${LASIUS_HOSTNAME:-localhost}${LASIUS_PORT_HTTPS:+:$LASIUS_PORT_HTTPS}"
-    break
-    ;;
-  [Nn]*)
-    dockerfile="docker-compose-no-https.yml"
-    baseurl="http://${LASIUS_HOSTNAME:-localhost}${LASIUS_PORT_HTTP:+:$LASIUS_PORT_HTTP}"
-    break
-    ;;
-  *) echo "Please answer with (y)es or (n)o" ;;
-  esac
-done
+    read -rp "Start lasius in https mode (with lets-encrypt certificate)? (y/n) " yn
+    case $yn in
+    [Yy]*)
+      dockerfile="docker-compose.yml"
+      baseurl="https://${LASIUS_HOSTNAME:-localhost}${LASIUS_PORT_HTTPS:+:$LASIUS_PORT_HTTPS}"
+      break
+      ;;
+    [Nn]*)
+      dockerfile="docker-compose-no-https.yml"
+      baseurl="http://${LASIUS_HOSTNAME:-localhost}${LASIUS_PORT_HTTP:+:$LASIUS_PORT_HTTP}"
+      break
+      ;;
+    *) echo "Please answer with (y)es or (n)o" ;;
+    esac
+  done
+
+  mkdir -p ./$mode/termsofservice
+  while true; do
+    read -rp "Do you want to require users to accept Terms of Services before they are able to use Lasius? (y/n) " yn
+    case $yn in
+    [Yy]*)
+      termsofservice="1.0"
+      cp -n ./templates/termsofservice/* ./$mode/termsofservice/
+      echo ""
+      echo "NOTE: Please edit the following files to reflect your Terms of Service:"
+      echo ""
+      for F in `ls $mode/termsofservice/*.html` ; do
+        echo "     - $F"
+      done
+      echo ""
+      echo "If you update those files later, you also have to change LASIUS_TERMSOFSERVICE_VERSION in"
+      echo "./$mode/.env in order to require users to accept the updated version of the terms."
+      break
+      ;;
+    [Nn]*)
+      termsofservice=""
+      break
+      ;;
+    *) echo "Please answer with (y)es or (n)o" ;;
+    esac
+  done
 fi
 echo ""
 
@@ -180,6 +206,7 @@ echo "LASIUS_OAUTH_CLIENT_ID=$oauth_client_id" >>$env_file
 echo "LASIUS_OAUTH_CLIENT_SECRET=$oauth_client_secret" >>$env_file
 echo "LASIUS_INTERNAL_JWT_PRIVATE_KEY=$oauth_jwt_private_key" >>$env_file
 echo "NEXTAUTH_SECRET=$next_auth_key" >>$env_file
+echo "LASIUS_TERMSOFSERVICE_VERSION=\"$termsofservice\"" >>$env_file
 
 # add local keycloak configuration
 if [ "$mode" == "production" ]; then

@@ -72,6 +72,16 @@ cd lasius-docker-compose
 If you would like to use Lasius in a commercial setting, please contact us
 at [info@tegonal.com](mailto:info@tegonal.com). We can manage your deployment and provide support for your team.
 
+## Customization
+
+### Terms of Service
+You can require users to accept your Terms of Service before they are able to use Lasius. To enable this feature,
+answer 'yes' to the corresponding question during setup in production mode. Then, edit the template files in
+`production/termsofservice/` to reflect your Terms of Service. There is one HTML file per supported language
+(e.g. `en.html` for English).
+Please note that if you update those files later, you also have to change `LASIUS_TERMSOFSERVICE_VERSION` in
+`production/.env` and restart the service in order to force users to accept the updated version of the terms.
+
 ## Terms of use
 
 Lasius is licensed under Gnu Affero General Public License v3.0. Please read the [LICENSE](LICENSE) file for more

@@ -52,9 +52,12 @@ services:
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-zSaXWo4L7rS9uWETmvT6oL/0tE6X4Lt7ZCJRkNBUMnQ=}
       NEXTAUTH_URL: http://${LASIUS_HOSTNAME:-localhost}:${LASIUS_PORT_HTTP:-80}
       NEXTAUTH_URL_INTERNAL: http://frontend:3000
+      LASIUS_TERMSOFSERVICE_VERSION: ${LASIUS_TERMSOFSERVICE_VERSION}
       TZ: ${TZ:-CET}
       # Disable if you want to reduce log output
       LASIUS_DEBUG: 'false'
+    volumes:
+      - ./termsofservice:/app/public/termsofservice
 
   backend:
     image: tegonal/lasius-backend:${LASIUS_VERSION:-latest}

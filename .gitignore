@@ -2,3 +2,6 @@
 .env
 mongodb.key
 lasius.conf
+/production/data/
+/production/termsofservice/
+/testing/termsofservice/
