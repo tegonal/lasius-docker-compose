@@ -95,12 +95,12 @@ if [ "$mode" == "production" ]; then
   case $yn in
   [Yy]*)
     dockerfile="docker-compose.yml"
-    baseurl="https://${LASIUS_HOSTNAME:-localhost}:${LASIUS_PORT_HTTPS:-443}"
+    baseurl="https://${LASIUS_HOSTNAME:-localhost}${LASIUS_PORT_HTTPS:+:$LASIUS_PORT_HTTPS}"
     break
     ;;
   [Nn]*)
     dockerfile="docker-compose-no-https.yml"
-    baseurl="http://${LASIUS_HOSTNAME:-localhost}:${LASIUS_PORT_HTTP:-80}"
+    baseurl="http://${LASIUS_HOSTNAME:-localhost}${LASIUS_PORT_HTTP:+:$LASIUS_PORT_HTTP}"
     break
     ;;
   *) echo "Please answer with (y)es or (n)o" ;;

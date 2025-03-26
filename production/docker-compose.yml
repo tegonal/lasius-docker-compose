@@ -57,7 +57,7 @@ services:
       - traefik.http.services.frontend.loadbalancer.server.port=3000
     restart: always
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- 'http://frontend:3000/api/health' || exit 1"]
+      test: [ "CMD-SHELL", "wget -qO- 'http://frontend:3000/api/health' || exit 1" ]
       interval: 10s
       retries: 5
       start_period: 5s
@@ -74,7 +74,7 @@ services:
       LASIUS_TELEMETRY_MATOMO_HOST: ${LASIUS_TELEMETRY_MATOMO_HOST}
       LASIUS_TELEMETRY_MATOMO_ID: ${LASIUS_TELEMETRY_MATOMO_ID}
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-zSaXWo4L7rS9uWETmvT6oL/0tE6X4Lt7ZCJRkNBUMnQ=}
-      NEXTAUTH_URL: https://${LASIUS_HOSTNAME:-localhost}:${LASIUS_PORT_HTTPS:-443}/api/auth
+      NEXTAUTH_URL: https://${LASIUS_HOSTNAME:-localhost}:${LASIUS_PORT_HTTPS:-443}
       NEXTAUTH_URL_INTERNAL: http://frontend:3000
       TZ: ${TZ:-CET}
       # Disable if you want to reduce log output
@@ -187,7 +187,7 @@ services:
       POSTGRES_USER: ${POSTGRES_DB_USERNAME}
       POSTGRES_PASSWORD: ${POSTGRES_DB_PASSWORD}
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready"]
+      test: [ "CMD-SHELL", "pg_isready" ]
       interval: 10s
       timeout: 5s
       retries: 5
