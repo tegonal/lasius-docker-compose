@@ -25,14 +25,16 @@ services:
   frontend:
     image: tegonal/lasius-frontend:${LASIUS_VERSION:-latest}
     container_name: frontend
+    env_file:
+      - .env
     labels:
       - traefik.enable=true
-      - traefik.http.routers.frontend.rule=Host(`${LASIUS_HOSTNAME:-localhost}`) && !PathPrefix(`/backend`)
+      - traefik.http.routers.frontend.rule=Host(`${LASIUS_HOSTNAME:-localhost}`) && !PathPrefix(`/backend`) && !PathPrefix(`/keycloak`)
       - traefik.http.routers.frontend.entrypoints=http
       - traefik.http.services.frontend.loadbalancer.server.port=3000
     restart: always
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- 'http://frontend:3000/api/health' || exit 1"]
+      test: [ "CMD-SHELL", "wget -qO- 'http://frontend:3000/api/health' || exit 1" ]
       interval: 10s
       retries: 5
       start_period: 5s
@@ -49,13 +51,20 @@ services:
       LASIUS_TELEMETRY_MATOMO_HOST: ${LASIUS_TELEMETRY_MATOMO_HOST}
       LASIUS_TELEMETRY_MATOMO_ID: ${LASIUS_TELEMETRY_MATOMO_ID}
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-zSaXWo4L7rS9uWETmvT6oL/0tE6X4Lt7ZCJRkNBUMnQ=}
-      NEXTAUTH_URL: http://${LASIUS_HOSTNAME:-localhost}:${LASIUS_PORT_HTTP:-80}/api/auth
+      NEXTAUTH_URL: http://${LASIUS_HOSTNAME:-localhost}:${LASIUS_PORT_HTTP:-80}
       NEXTAUTH_URL_INTERNAL: http://frontend:3000
+      LASIUS_TERMSOFSERVICE_VERSION: ${LASIUS_TERMSOFSERVICE_VERSION}
       TZ: ${TZ:-CET}
+      # Disable if you want to reduce log output
+      LASIUS_DEBUG: 'false'
+    volumes:
+      - ./termsofservice:/app/public/termsofservice
 
   backend:
     image: tegonal/lasius-backend:${LASIUS_VERSION:-latest}
     container_name: backend
+    env_file:
+      - .env
     labels:
       - traefik.enable=true
       - traefik.http.routers.backend.rule=Host(`${LASIUS_HOSTNAME:-localhost}`) && PathPrefix(`/backend`) && !PathPrefix(`/backend/docs`)
@@ -74,16 +83,14 @@ services:
     environment:
       ARTIFACT_PATH: artifact.zip
       LASIUS_CLEAN_DATABASE_ON_STARTUP: 'false'
-      LASIUS_INITIALIZE_DATA: 'true' # <== Set to false after first start
       LASIUS_INSTANCE: ${LASIUS_INSTANCE:-Dev}
-      LASIUS_INITIAL_USER_EMAIL: ${LASIUS_INITIAL_USER_EMAIL}
-      LASIUS_INITIAL_USER_KEY: ${LASIUS_INITIAL_USER_KEY}
-      LASIUS_INITIAL_USER_PASSWORD: ${LASIUS_INITIAL_USER_PASSWORD}
       LASIUS_SUPPORTS_TRANSACTIONS: 'false' # <== Enable transactions only if you connect to a mongodb replicaset
       LASIUS_TITLE: ${LASIUS_HOSTNAME:-lasius}
       MONGODB_URI: mongodb://${MONGO_INITDB_USERNAME:-lasius}:${MONGO_INITDB_PASSWORD:-lasius}@${MONGO_HOST:-mongodb:27017}/lasius
-      START_PARAMS: -Dlogger.resource=logback-prod.xml -Dpidfile.path=/var/run/lasius.pid -DALLOWED_HOSTS.0=${LASIUS_HOSTNAME:-localhost} -DALLOWED_HOSTS.2=backend:9000
+      START_PARAMS: -Dlogger.resource=logback-prod.xml -Dconfig.file=/app/backend.conf -Dpidfile.path=/var/run/lasius.pid -DALLOWED_HOSTS.0=${LASIUS_HOSTNAME:-localhost} -DALLOWED_HOSTS.2=backend:9000
       TZ: ${TZ:-CET}
+    volumes:
+      - ${PWD}/backend.conf:/app/backend.conf
 
   mongodb:
     build:
@@ -113,6 +120,55 @@ services:
       - ./mongodb/init/mongodb-init.sh:/docker-entrypoint-initdb.d/mongodb-init.sh:ro
     command: --replSet lasius --bind_ip_all --keyFile /secrets/mongodb.key --auth  --port 27017
 
+  keycloak:
+    build:
+      context: keycloak
+      dockerfile: ./Dockerfile
+    env_file:
+      - .env
+    container_name: keycloak
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.keycloak.rule=Host(`${LASIUS_HOSTNAME:-localhost}`) && PathPrefix(`/keycloak`)
+      - traefik.http.routers.keycloak.entrypoints=http
+      - traefik.http.services.keycloak.loadbalancer.server.port=8080
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./keycloak/lasius-theme:/opt/keycloak/themes/lasius-theme
+    environment:
+      KC_DB_URL: jdbc:postgresql://postgres/${POSTGRES_DB_NAME}
+      KC_DB_USERNAME: ${POSTGRES_DB_USERNAME}
+      KC_DB_PASSWORD: ${POSTGRES_DB_PASSWORD}
+      KC_HOSTNAME: http://${LASIUS_HOSTNAME:-localhost}/keycloak
+      KC_HOSTNAME_PORT: ${LASIUS_PORT_HTTP:-80}
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: true
+      KC_HOSTNAME_DEBUG: true
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PWD}
+      KC_FRONTEND_URL: http://${LASIUS_HOSTNAME:-localhost}${LASIUS_PORT_HTTP:+$LASIUS_PORT_HTTP}/keycloak
+      KC_HTTP_ENABLED: true
+      KC_LOG_LEVEL: info
+      LASIUS_URL: http://${LASIUS_HOSTNAME:-localhost}${LASIUS_PORT_HTTP:+$LASIUS_PORT_HTTP}
+
+  postgres:
+    image: pgautoupgrade/pgautoupgrade:17-bookworm
+    container_name: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB_NAME}
+      POSTGRES_USER: ${POSTGRES_DB_USERNAME}
+      POSTGRES_PASSWORD: ${POSTGRES_DB_PASSWORD}
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 volumes:
+  postgres_data:
   db:
     driver: local

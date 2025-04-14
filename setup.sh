@@ -6,9 +6,10 @@ if [ "$(uname -m)" != "x86_64" ]; then
   exit 1
 fi
 
+DATE_SUFFIX=$(date +"%Y%m%d")
 if [ -f "lasius.conf" ]; then
   while true; do
-    read -rp "Config already exists, do you want to start over and create a a new one? This will also reset all the keys. (y/n) " yn
+    read -rp "Config already exists, do you want to start over and create a a new one? This will also reset all the keys, a copy will be created. (y/n) " yn
     case $yn in
     [Yy]*)
       break
@@ -19,6 +20,12 @@ if [ -f "lasius.conf" ]; then
     *) echo "Please answer with (y)es or (n)o" ;;
     esac
   done
+  
+  BACKUP_NAME="lasius.conf.bkp_$DATE_SUFFIX"
+  cp "lasius.conf" "$BACKUP_NAME"
+  echo ""
+  echo ">>> Created a copy of the existing lasius.conf to $BACKUP_NAME"
+  echo ""
 fi
 
 SERVER_VERSION=$(docker version -f "{{.Server.Version}}")
@@ -60,8 +67,8 @@ echo "If you choose production mode, you will be asked to enter a hostname. This
 echo "will be used to generate a certificate for your server. If you choose testing"
 echo "mode, you will be asked to enter a HTTP port."
 echo ""
-echo "Additionally, if you choose production mode, you will be asked to enter an e-mail"
-echo "and password. This will be your initial \"root\" user."
+echo "Additionally, if you choose production mode, you will be asked if you want "
+echo "to require users to accept your Terms of Service before using Lasius."
 echo ""
 while true; do
   read -rp "Start lasius in production mode? (y/n) " yn
@@ -91,40 +98,47 @@ if [ "$mode" == "production" ]; then
   echo ""
 
   while true; do
-    read -rp "Please enter an e-mail for the admin user, this will be your login: " input
-    if [ -z "$input" ]; then
-      echo "Please enter an e-mail."
-    else
-      admin_user=$input
+    read -rp "Start lasius in https mode (with lets-encrypt certificate)? (y/n) " yn
+    case $yn in
+    [Yy]*)
+      dockerfile="docker-compose.yml"
+      baseurl="https://\${LASIUS_HOSTNAME:-localhost}\${LASIUS_PORT_HTTPS:+:\$LASIUS_PORT_HTTPS}"
       break
-    fi
-  done
-  echo ""
-
-  while true; do
-    read -rp "Please enter a password for the admin user: " input
-    if [ -z "$input" ]; then
-      echo "Please enter an password."
-    else
-      admin_pw=$input
+      ;;
+    [Nn]*)
+      dockerfile="docker-compose-no-https.yml"
+      baseurl="http://\${LASIUS_HOSTNAME:-localhost}\${LASIUS_PORT_HTTP:+:\$LASIUS_PORT_HTTP}"
       break
-    fi
+      ;;
+    *) echo "Please answer with (y)es or (n)o" ;;
+    esac
   done
 
+  mkdir -p ./$mode/termsofservice
   while true; do
-  read -rp "Start lasius in https mode (with lets-encrypt certificate)? (y/n) " yn
-  case $yn in
-  [Yy]*)
-    dockerfile="docker-compose.yml"
-    break
-    ;;
-  [Nn]*)
-    dockerfile="docker-compose-no-https.yml"
-    break
-    ;;
-  *) echo "Please answer with (y)es or (n)o" ;;
-  esac
-done
+    read -rp "Do you want to require users to accept Terms of Services before they are able to use Lasius? (y/n) " yn
+    case $yn in
+    [Yy]*)
+      termsofservice="1.0"
+      cp -n ./templates/termsofservice/* ./$mode/termsofservice/
+      echo ""
+      echo "NOTE: Please edit the following files to reflect your Terms of Service:"
+      echo ""
+      for F in `ls $mode/termsofservice/*.html` ; do
+        echo "     - $F"
+      done
+      echo ""
+      echo "If you update those files later, you also have to change LASIUS_TERMSOFSERVICE_VERSION in"
+      echo "./$mode/.env in order to require users to accept the updated version of the terms."
+      break
+      ;;
+    [Nn]*)
+      termsofservice=""
+      break
+      ;;
+    *) echo "Please answer with (y)es or (n)o" ;;
+    esac
+  done
 fi
 echo ""
 
@@ -149,6 +163,15 @@ mongo_db_pw=$(openssl rand -hex 16 | tr -d '\n')
 next_auth_key=$(openssl rand -base64 96 | tr -d '\n')
 
 mongo_admin_db_pw=$(openssl rand -hex 32 | tr -d '\n')
+postgres_admin_db_pw=$(openssl rand -hex 32 | tr -d '\n')
+
+# internal oauth provider secrets
+oauth_client_id=$(openssl rand -hex 16 | tr -d '\n')
+oauth_client_secret=$(openssl rand -hex 16 | tr -d '\n')
+oauth_jwt_private_key=$(openssl rand -hex 16 | tr -d '\n')
+
+keycloak_admin_pwd=$(openssl rand -hex 32 | tr -d '\n')
+keycloak_client_secret=$(openssl rand -hex 32 | tr -d '\n')
 
 echo "Saving configuration to lasius.conf ..."
 echo "mode=$mode" >lasius.conf
@@ -158,7 +181,15 @@ echo ""
 mongo_db_key_file=./$mode/mongodb/key/mongodb.key
 echo "$mongo_db_key" >"$mongo_db_key_file"
 
-env_file=./$mode/.env
+env_file="./$mode/.env"
+
+if [ -f "$env_file" ]; then
+  BACKUP_NAME="${env_file}_$DATE_SUFFIX"
+  cp "$env_file" "$BACKUP_NAME"
+  echo ""
+  echo ">>> Created a copy of the existing $env_file to $BACKUP_NAME"
+  echo ""
+fi
 
 echo "LASIUS_HOSTNAME=$hostname" >$env_file
 echo "LASIUS_INSTANCE=lasius-$mode" >>$env_file
@@ -174,16 +205,31 @@ fi
 echo "LASIUS_TELEMETRY_MATOMO_HOST=" >>$env_file
 echo "LASIUS_TELEMETRY_MATOMO_ID=" >>$env_file
 echo "LASIUS_VERSION=" >>$env_file
-echo "LASIUS_PORT_HTTPS=443" >>$env_file
-echo "LASIUS_PORT_HTTP=$local_http_port" >>$env_file
+echo "LASIUS_PORT_HTTPS=" >>$env_file
+if [ "$local_http_port " != "80" ]; then
+  echo "LASIUS_PORT_HTTP=$local_http_port" >>$env_file
+fi
 echo "MONGO_HOST=mongodb:27017" >>$env_file
 echo "MONGO_INITDB_PASSWORD=$mongo_db_pw" >>$env_file
 echo "MONGO_INITDB_ROOT_USERNAME=admin" >>$env_file
 echo "MONGO_INITDB_ROOT_PASSWORD=$mongo_admin_db_pw" >>$env_file
 echo "MONGO_INITDB_USERNAME=lasius" >>$env_file
+echo "POSTGRES_DB_NAME=lasius-keycloak" >>$env_file
+echo "POSTGRES_DB_USERNAME=admin" >>$env_file
+echo "POSTGRES_DB_PASSWORD=$postgres_admin_db_pw" >>$env_file
+echo "LASIUS_OAUTH_CLIENT_ID=$oauth_client_id" >>$env_file
+echo "LASIUS_OAUTH_CLIENT_SECRET=$oauth_client_secret" >>$env_file
+echo "LASIUS_INTERNAL_JWT_PRIVATE_KEY=$oauth_jwt_private_key" >>$env_file
 echo "NEXTAUTH_SECRET=$next_auth_key" >>$env_file
-echo "LASIUS_INITIAL_USER_EMAIL=$admin_user" >>$env_file
-echo "LASIUS_INITIAL_USER_PASSWORD=$admin_pw" >>$env_file
-echo "LASIUS_INITIAL_USER_KEY=admin" >>$env_file
+echo "LASIUS_TERMSOFSERVICE_VERSION=\"$termsofservice\"" >>$env_file
+
+# add local keycloak configuration
+if [ "$mode" == "production" ]; then
+  echo "KEYCLOAK_OAUTH_ISSUER=$baseurl/keycloak/realms/lasius" >>$env_file
+  echo "KEYCLOAK_OAUTH_URL=http://keycloak:8080/keycloak/realms/lasius" >>$env_file
+  echo "KEYCLOAK_OAUTH_CLIENT_ID=lasius-frontend" >>$env_file
+  echo "KEYCLOAK_OAUTH_CLIENT_SECRET=$keycloak_client_secret" >>$env_file
+  echo "KEYCLOAK_ADMIN_PWD=$keycloak_admin_pwd" >>$env_file
+fi
 
 echo "Done. You can now start Lasius with the start.sh script."
