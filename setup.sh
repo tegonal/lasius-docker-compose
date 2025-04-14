@@ -6,9 +6,10 @@ if [ "$(uname -m)" != "x86_64" ]; then
   exit 1
 fi
 
+DATE_SUFFIX=$(date +"%Y%m%d")
 if [ -f "lasius.conf" ]; then
   while true; do
-    read -rp "Config already exists, do you want to start over and create a a new one? This will also reset all the keys. (y/n) " yn
+    read -rp "Config already exists, do you want to start over and create a a new one? This will also reset all the keys, a copy will be created. (y/n) " yn
     case $yn in
     [Yy]*)
       break
@@ -19,6 +20,12 @@ if [ -f "lasius.conf" ]; then
     *) echo "Please answer with (y)es or (n)o" ;;
     esac
   done
+  
+  BACKUP_NAME="lasius.conf.bkp_$DATE_SUFFIX"
+  cp "lasius.conf" "$BACKUP_NAME"
+  echo ""
+  echo ">>> Created a copy of the existing lasius.conf to $BACKUP_NAME"
+  echo ""
 fi
 
 SERVER_VERSION=$(docker version -f "{{.Server.Version}}")
@@ -174,7 +181,15 @@ echo ""
 mongo_db_key_file=./$mode/mongodb/key/mongodb.key
 echo "$mongo_db_key" >"$mongo_db_key_file"
 
-env_file=./$mode/.env
+env_file="./$mode/.env"
+
+if [ -f "$env_file" ]; then
+  BACKUP_NAME="${env_file}_$DATE_SUFFIX"
+  cp "$env_file" "$BACKUP_NAME"
+  echo ""
+  echo ">>> Created a copy of the existing $env_file to $BACKUP_NAME"
+  echo ""
+fi
 
 echo "LASIUS_HOSTNAME=$hostname" >$env_file
 echo "LASIUS_INSTANCE=lasius-$mode" >>$env_file
